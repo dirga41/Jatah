@@ -8,6 +8,7 @@ import {
   KETERANGAN_TARGET,
   Kartu,
   KolomTanggal,
+  PESAN_BUTUH_INTERNET,
   LayarKeadaan,
   latarStatus,
   pintasTarget,
@@ -28,7 +29,7 @@ import {
   type Data,
   type Tagihan,
 } from "@/lib/hitung";
-import { dataLokalLama, pindahkanDataLama, simpanPengaturan, tambahTransaksi, useData } from "@/lib/simpan";
+import { dataLokalLama, pindahkanDataLama, simpanPengaturan, tambahTransaksi, useData, useSinkron } from "@/lib/simpan";
 
 const KUNCI_TUNDA = "jatah:pindah-nanti";
 
@@ -48,6 +49,7 @@ function Beranda() {
   const [galat, setGalat] = useState<string | null>(null);
   const [membayar, setMembayar] = useState<string | null>(null);
   const [memindah, setMemindah] = useState(false);
+  const { online } = useSinkron();
   // "Nanti saja" hanya berlaku untuk sesi browser ini.
   const [ditunda, setDitunda] = useState(() => {
     try {
@@ -83,7 +85,7 @@ function Beranda() {
         <div className="mt-4 flex gap-2">
           <button
             type="button"
-            disabled={memindah}
+            disabled={memindah || !online}
             className={`${tombolUtama} flex-1`}
             onClick={async () => {
               setMemindah(true);
@@ -108,6 +110,7 @@ function Beranda() {
             Nanti saja
           </button>
         </div>
+        {!online && <p className="mt-2 text-sm font-semibold text-redup">{PESAN_BUTUH_INTERNET}</p>}
       </section>
     );
 

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Jatah</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --latar: #f6f0e4;
+        --permukaan: #fffbf2;
+        --teks: #2b2a24;
+        --garis: #ddd1ba;
+        --hijau: #2f5d46;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --latar: #1f1d18;
+          --permukaan: #2a2720;
+          --teks: #f3ede0;
+          --garis: #3d3829;
+          --hijau: #6fbf8f;
+        }
+      }
+      body {
+        margin: 0;
+        background: var(--latar);
+        color: var(--teks);
+        font-family: system-ui, sans-serif;
+      }
+      main {
+        max-width: 430px;
+        margin: 0 auto;
+        padding: 24px 16px;
+      }
+      div {
+        border: 1px solid var(--garis);
+        background: var(--permukaan);
+        border-radius: 16px;
+        padding: 16px;
+      }
+      a {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+        color: var(--hijau);
+        font-weight: 600;
+      }
+      a:focus-visible {
+        outline: 3px solid var(--teks);
+        outline-offset: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div role="alert">
+        <p>Halaman ini belum tersimpan untuk dipakai offline. Sambungkan internet sekali dulu.</p>
+        <a href="/">Ke Beranda</a>
+      </div>
+    </main>
+  </body>
+</html>

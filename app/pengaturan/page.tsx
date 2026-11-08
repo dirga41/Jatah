@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Galat, InputRupiah, Kartu, LayarKeadaan, kolom, label, tombolKedua, tombolUtama } from "@/components/ui";
+import { Galat, InputRupiah, Kartu, LayarKeadaan, PESAN_BUTUH_INTERNET, kolom, label, tombolKedua, tombolUtama } from "@/components/ui";
 import {
   idBaru,
   kunciTanggal,
@@ -12,7 +12,17 @@ import {
   type BiayaTetap,
   type Data,
 } from "@/lib/hitung";
-import { ambilSalinan, emailSesi, gantiSemua, hapusSemua, keluar, simpanPengaturan, useData } from "@/lib/simpan";
+import {
+  ambilSalinan,
+  emailSesi,
+  gantiSemua,
+  hapusSemua,
+  jumlahBelumTerkirim,
+  keluar,
+  simpanPengaturan,
+  useData,
+  useSinkron,
+} from "@/lib/simpan";
 
 export default function Pengaturan() {
   const k = useData();
@@ -264,13 +274,15 @@ function FormPengaturan({ data }: { data: Data }) {
 function SalinanData({ onGanti }: { onGanti: () => void }) {
   const [pesan, setPesan] = useState<{ teks: string; galat: boolean } | null>(null);
   const [sibuk, setSibuk] = useState<"unduh" | "pulihkan" | "hapus" | null>(null);
+  const { online } = useSinkron();
 
   const unduh = async () => {
     setPesan(null);
     setSibuk("unduh");
     try {
       // Diambil langsung dari database (semua halaman) supaya salinannya lengkap dan terbaru.
-      const data = await ambilSalinan();
+      // Dari data di perangkat (termasuk perubahan yang belum terkirim), jadi bisa dipakai offline.
+      const data = ambilSalinan();
       const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
       const a = document.createElement("a");
       a.href = url;
@@ -346,21 +358,26 @@ function SalinanData({ onGanti }: { onGanti: () => void }) {
           id="file-salinan"
           type="file"
           accept="application/json,.json"
-          disabled={sibuk !== null}
+          disabled={sibuk !== null || !online}
           className="peer sr-only"
           onChange={pulihkan}
         />
         <label
           htmlFor="file-salinan"
-          aria-disabled={sibuk !== null}
+          aria-disabled={sibuk !== null || !online}
           className={`${tombolKedua} flex cursor-pointer items-center justify-center peer-focus-visible:outline-3 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-teks peer-disabled:cursor-not-allowed peer-disabled:opacity-50`}
         >
           {sibuk === "pulihkan" ? "Menyimpan..." : "Pulihkan dari salinan"}
         </label>
-        <button type="button" disabled={sibuk !== null} className={`${tombolKedua} text-merah`} onClick={hapus}>
+        <button type="button" disabled={sibuk !== null || !online} className={`${tombolKedua} text-merah`} onClick={hapus}>
           {sibuk === "hapus" ? "Menyimpan..." : "Hapus semua data"}
         </button>
       </div>
+      {!online && (
+        <p className="mt-2 text-sm text-redup">
+          Pulihkan dan hapus semua data: {PESAN_BUTUH_INTERNET} Unduh salinan tetap bisa.
+        </p>
+      )}
       {pesan && (
         <p role="status" className={`mt-3 text-sm font-semibold ${pesan.galat ? "text-merah" : "text-hijau"}`}>
           {pesan.teks}
@@ -383,8 +400,11 @@ function Akun() {
         disabled={sibuk}
         className={`${tombolKedua} mt-3 w-full`}
         onClick={async () => {
+          const n = jumlahBelumTerkirim();
+          if (n && !confirm(`Ada ${n} perubahan yang belum terkirim. Kalau keluar sekarang, perubahan itu hilang. Tetap keluar?`))
+            return;
           setSibuk(true);
-          // Setelah keluar, penjaga halaman mengarahkan ke /masuk dan data di memori dibuang.
+          // Setelah keluar, penjaga halaman mengarahkan ke /masuk; data di memori dan di perangkat untuk akun ini dibuang.
           const g = await keluar();
           setGalat(g);
           setSibuk(false);

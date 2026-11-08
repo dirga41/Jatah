@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { DM_Sans, Nunito } from "next/font/google";
-import { Penjaga } from "@/components/ui";
+import { PendaftarSW, Penjaga } from "@/components/ui";
 import "./globals.css";
 
 const nunito = Nunito({ subsets: ["latin"], weight: ["700", "800"], variable: "--font-nunito" });
@@ -9,6 +9,7 @@ const dmSans = DM_Sans({ subsets: ["latin"], variable: "--font-dm-sans" });
 export const metadata: Metadata = {
   title: "Jatah",
   description: "Pencatat uang pribadi: berapa yang boleh kamu belanjakan hari ini.",
+  icons: { icon: "/ikon-192.png", apple: "/apple-touch-icon.png" },
 };
 
 export const viewport: Viewport = {
@@ -42,6 +43,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="font-sans antialiased">
         <Penjaga>{children}</Penjaga>
+        <PendaftarSW />
       </body>
     </html>
   );

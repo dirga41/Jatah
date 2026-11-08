@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { akhirBulan, rupiah, tambahHari, type Status } from "@/lib/hitung";
-import { muat, useSesi, type Keadaan } from "@/lib/simpan";
+import { jelaskanOp } from "@/lib/antrean";
+import { buangGagal, cobaLagiGagal, muat, useSesi, useSinkron, type Keadaan } from "@/lib/simpan";
 import { variabelKurang } from "@/lib/supabase";
 
 export const tombolUtama =
@@ -249,7 +250,11 @@ export function LayarKeadaan({ k }: { k: Exclude<Keadaan, { status: "siap" }> })
     );
   return (
     <div role="alert" className="mt-6 rounded-2xl border border-garis bg-permukaan p-4">
-      <p>Tidak bisa mengambil datamu. Periksa internet, lalu coba lagi.</p>
+      <p>
+        {k.status === "offline-kosong"
+          ? "Kamu sedang offline dan data belum pernah dimuat di HP ini. Sambungkan internet sekali dulu."
+          : "Tidak bisa mengambil datamu. Periksa internet, lalu coba lagi."}
+      </p>
       <button type="button" className={`${tombolKedua} mt-4 w-full`} onClick={() => void muat()}>
         Coba lagi
       </button>
@@ -267,13 +272,27 @@ export function Penjaga({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const router = useRouter();
   const sesi = useSesi();
+  const { perluMasuk } = useSinkron();
   const terbuka = HALAMAN_TERBUKA.includes(path);
+  // Saat sesi perlu diperbarui, /masuk tetap boleh dibuka supaya bisa masuk lagi tanpa kehilangan antrean.
   const arah =
-    variabelKurang.length || sesi === undefined ? null : !sesi && !terbuka ? "/masuk" : sesi && path === "/masuk" ? "/" : null;
+    variabelKurang.length || sesi === undefined
+      ? null
+      : !sesi && !terbuka
+        ? "/masuk"
+        : sesi && path === "/masuk" && !perluMasuk
+          ? "/"
+          : null;
+  const idPengguna = sesi?.id;
 
   useEffect(() => {
     if (arah) router.replace(arah);
   }, [arah, router]);
+
+  // Muat berkas halaman utama sejak awal supaya ikut tersimpan untuk dipakai offline.
+  useEffect(() => {
+    if (idPengguna) for (const r of ["/", "/catat", "/ringkasan", "/pengaturan"]) router.prefetch(r);
+  }, [idPengguna, router]);
 
   let isi = children;
   if (variabelKurang.length) isi = <KonfigurasiKurang />;
@@ -286,11 +305,98 @@ export function Penjaga({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <main className="mx-auto max-w-[430px] px-4 pt-6 pb-32">{isi}</main>
+      <main className="mx-auto max-w-[430px] px-4 pt-6 pb-32">
+        {sesi && !terbuka && !arah && <BarisStatus />}
+        {isi}
+      </main>
       {!variabelKurang.length && sesi && !terbuka && <MenuBawah />}
     </>
   );
 }
+
+/** Satu baris status pengiriman; hanya muncul kalau perlu. */
+function BarisStatus() {
+  const s = useSinkron();
+  const [buka, setBuka] = useState(false);
+  const n = s.menunggu;
+  const kalimat: React.ReactNode[] = [];
+  if (s.perluMasuk)
+    kalimat.push(
+      <span key="masuk">
+        Masuk lagi untuk mengirim {n} perubahan.{" "}
+        <Link href="/masuk" className="inline-flex min-h-11 items-center font-semibold text-hijau underline">
+          Masuk
+        </Link>
+      </span>,
+    );
+  else if (!s.online)
+    kalimat.push(
+      `Kamu sedang offline. Perubahan disimpan di HP dan dikirim saat internet kembali.${n ? ` ${n} menunggu dikirim.` : ""}`,
+    );
+  else if (s.mengirim && n) kalimat.push(`Mengirim ${n} perubahan...`);
+  if (s.peringatan) kalimat.push(s.peringatan);
+
+  if (!kalimat.length && !s.gagal.length) return null;
+  return (
+    <div role="status" className="mb-4 rounded-xl border border-garis bg-permukaan p-3 text-sm">
+      {kalimat.map((k, i) => (
+        <p key={i}>{k}</p>
+      ))}
+      {s.gagal.length > 0 && (
+        <>
+          <p className="flex items-center justify-between gap-2">
+            <span className="font-semibold text-merah">{s.gagal.length} perubahan gagal dikirim.</span>
+            <button type="button" className={`${tombolKedua} text-sm`} aria-expanded={buka} onClick={() => setBuka(!buka)}>
+              {buka ? "Tutup" : "Lihat"}
+            </button>
+          </p>
+          {buka && (
+            <ul className="mt-2 divide-y divide-garis2">
+              {s.gagal.map((g) => (
+                <li key={g.op.opId} className="py-2">
+                  <p className="font-semibold">{jelaskanOp(g.op)}</p>
+                  <p className="text-redup">{g.pesan}</p>
+                  <div className="mt-2 flex gap-2">
+                    <button type="button" className={`${tombolKedua} flex-1 text-sm`} onClick={() => cobaLagiGagal(g.op.opId)}>
+                      Coba lagi
+                    </button>
+                    <button
+                      type="button"
+                      className={`${tombolKedua} flex-1 text-sm text-merah`}
+                      onClick={() => {
+                        if (confirm(`Buang perubahan ini? "${jelaskanOp(g.op)}" tidak akan dikirim dan tidak bisa dikembalikan.`))
+                          buangGagal(g.op.opId);
+                      }}
+                    >
+                      Buang
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+/** Mendaftarkan service worker (hanya versi produksi) setelah halaman selesai dimuat. */
+export function PendaftarSW() {
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "production" || !("serviceWorker" in navigator)) return;
+    const daftar = () => void navigator.serviceWorker.register("/sw.js").catch(() => {});
+    if (document.readyState === "complete") daftar();
+    else {
+      window.addEventListener("load", daftar, { once: true });
+      return () => window.removeEventListener("load", daftar);
+    }
+  }, []);
+  return null;
+}
+
+/** Penjelasan di bawah tombol yang butuh internet. */
+export const PESAN_BUTUH_INTERNET = "Butuh internet. Coba lagi saat online.";
 
 function KonfigurasiKurang() {
   return (

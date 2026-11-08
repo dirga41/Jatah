@@ -13,13 +13,23 @@ export function pesanGalat(e: unknown): string {
     return "Terlalu sering mencoba. Tunggu sebentar lalu coba lagi.";
   if (kode === "email_not_confirmed" || pesan.includes("email not confirmed"))
     return "Email belum dikonfirmasi. Buka tautan konfirmasi di emailmu, lalu masuk.";
-  if (
+  if (galatJaringan(e)) return "Tidak bisa tersambung. Periksa internet, lalu coba lagi.";
+  return "Terjadi kesalahan. Coba lagi.";
+}
+
+/** true kalau galat itu karena jaringan (tidak tersambung, waktu habis), bukan karena datanya ditolak. */
+export function galatJaringan(e: unknown): boolean {
+  const g = (typeof e === "object" && e !== null ? e : {}) as { message?: unknown; name?: unknown };
+  const pesan = typeof g.message === "string" ? g.message.toLowerCase() : "";
+  return (
     g.name === "AuthRetryableFetchError" ||
+    g.name === "AbortError" ||
+    g.name === "TimeoutError" ||
     e instanceof TypeError ||
     pesan.includes("failed to fetch") ||
     pesan.includes("network") ||
-    pesan.includes("fetch failed")
-  )
-    return "Tidak bisa tersambung. Periksa internet, lalu coba lagi.";
-  return "Terjadi kesalahan. Coba lagi.";
+    pesan.includes("fetch failed") ||
+    pesan.includes("load failed") ||
+    pesan.includes("aborted")
+  );
 }

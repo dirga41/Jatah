@@ -131,6 +131,11 @@ Tes tidak butuh Supabase sungguhan.
   - pemetaan kolom database ↔ aplikasi;
   - pengambilan transaksi halaman demi halaman (0, tepat 1000, dan 2500 baris, galat di tengah, serta server yang membatasi di bawah 1000 baris);
   - terjemahan pesan kesalahan.
+- `lib/antrean.test.ts` memeriksa daftar tunggu perubahan untuk pemakaian offline:
+  - menerapkan perubahan ke data tanpa mengubah data aslinya;
+  - pemadatan antrean;
+  - pengiriman dengan server palsu: semua berhasil, jaringan putus di tengah, server menolak satu perubahan, sesi kedaluwarsa, dan kirim ulang setelah respons hilang tanpa duplikat;
+  - membaca antrean yang rusak.
 
 ## Mengunggah ke GitHub
 
@@ -176,6 +181,62 @@ Untuk perubahan berikutnya: jalankan lagi `npm run build` dan `npm test`, cek ap
 
 Setelah proyek tersambung, setiap `git push` ke GitHub membuat Vercel otomatis membangun dan men-deploy ulang versi terbaru. Kalau kamu mengubah Environment Variables, lakukan **Redeploy** sekali.
 
+## Memakai tanpa internet
+
+Jatah tetap bisa dibuka dan dipakai saat HP tidak tersambung internet.
+
+### Cara kerjanya
+
+- **Data di HP.** Setiap kali berhasil mengambil data dari server, Jatah menyimpan salinannya di HP (per akun). Saat aplikasi dibuka, salinan itu langsung tampil, lalu diperbarui diam-diam dari server kalau ada internet.
+- **Daftar tunggu.** Semua perubahan (catat, hapus, tandai biaya tetap dibayar, ubah pengaturan) disimpan dulu di daftar tunggu di HP. Tampilan, termasuk jatah harian, langsung berubah tanpa menunggu server. Lalu daftar tunggu dikirim ke server satu per satu.
+- **Dikirim otomatis.** Saat internet kembali, Jatah mengirim daftar tunggu dengan sendirinya: saat aplikasi dibuka, saat HP tersambung lagi, saat kamu kembali ke aplikasi, dan berkala selama masih ada yang menunggu.
+- **Tidak terkirim dua kali.** Setiap transaksi diberi nomor unik di HP, jadi kalau terkirim ulang (misalnya internet putus tepat saat mengirim), server mengenalinya dan tidak mencatatnya dua kali.
+- **Baris status** di atas halaman memberi tahu kalau kamu sedang offline, sedang mengirim, ada perubahan yang ditolak server ("Lihat" untuk mencoba lagi atau membuangnya), atau perlu masuk lagi. Di Ringkasan, transaksi yang belum terkirim diberi label "Belum terkirim".
+- **Berkas aplikasi** (halaman, tampilan, ikon) disimpan oleh service worker supaya aplikasinya bisa dibuka tanpa internet. Data keuanganmu tidak pernah disimpan di situ.
+
+### Yang bisa dan tidak bisa saat offline
+
+| Bisa saat offline | Butuh internet |
+| --- | --- |
+| Melihat semua halaman | Masuk dan daftar |
+| Catat dan hapus transaksi | Lupa kata sandi dan atur ulang kata sandi |
+| Tandai biaya tetap sudah dibayar | Pindahkan data lama |
+| Ubah pengaturan (uang dipegang, biaya tetap, tanggal target) | Pulihkan dari salinan |
+| Unduh salinan data (dari data di HP) | Hapus semua data |
+
+Masuk pertama kali di sebuah HP selalu butuh internet. Setelah itu, walau sesi login sudah lama dan HP sedang offline, Jatah tetap terbuka memakai data di HP, lalu memperbarui sesinya saat online lagi.
+
+**Setelah setiap pembaruan aplikasi** (setiap deploy baru), buka Jatah sekali dengan internet supaya versi barunya tersimpan untuk dipakai offline.
+
+### Memasang di layar utama HP
+
+- **Android (Chrome):** buka situs Jatah, ketuk menu browser (titik tiga), lalu **Pasang aplikasi** (atau **Tambahkan ke layar utama**).
+- **iPhone (Safari):** buka situs Jatah, ketuk **Bagikan**, lalu **Tambah ke Layar Utama**.
+
+### Mencoba mode offline di komputer
+
+Service worker hanya aktif di versi produksi (tidak di `npm run dev`).
+
+```bash
+npm run build
+npm start
+```
+
+1. Buka http://localhost:3000, masuk, lalu buka Beranda, Catat, Ringkasan, dan Pengaturan sekali.
+2. Buka DevTools (F12) > tab **Network**, lalu ubah **No throttling** menjadi **Offline**.
+3. Muat ulang halaman. Jatah tetap terbuka dengan datamu dan menampilkan "Kamu sedang offline".
+4. Catat beberapa transaksi. Jatah hari ini langsung berubah, dan di Ringkasan transaksinya berlabel "Belum terkirim".
+5. Kembalikan ke **No throttling**. Baris status menampilkan "Mengirim N perubahan..." lalu hilang.
+6. Buka Jatah di perangkat atau browser lain dengan akun yang sama. Datanya sama.
+
+### Batasan mode offline
+
+- Perubahan yang belum terkirim hanya ada di HP itu. Kalau data browser dibersihkan (atau kamu menekan Keluar) sebelum perubahan terkirim, perubahan itu hilang. Jatah meminta konfirmasi sebelum Keluar kalau masih ada yang belum terkirim.
+- Kalau dua perangkat mengubah pengaturan saat sama-sama offline, yang terakhir terkirim yang dipakai.
+- Tagihan biaya tetap yang ditandai "Sudah dibayar" dari dua perangkat sekaligus saat offline bisa tercatat dua kali. Hapus salah satunya di Ringkasan.
+- Kalau penyimpanan HP tidak bisa dipakai (misalnya mode privat atau penuh), Jatah memberi tahu dan hanya bisa dipakai saat online.
+- Saat baru dibuka tanpa internet, baris status bisa butuh beberapa detik sebelum menulis "Kamu sedang offline" karena supabase-js mencoba menyambung dulu. Data tetap langsung tampil.
+
 ## Data lama dari versi tanpa akun
 
 Versi sebelumnya menyimpan data di browser (localStorage). Setelah masuk, kalau akunmu masih kosong dan perangkat itu masih punya data lama, Beranda menampilkan "Ada data lama di perangkat ini. Pindahkan ke akunmu?":
@@ -188,10 +249,9 @@ Data versi lama (termasuk transaksi dari fitur yang sudah dihapus) diubah otomat
 
 ## Batasan
 
-- Data tersimpan di akunmu (database Supabase), bukan lagi di browser. Butuh internet untuk membuka dan mencatat. Kalau koneksi putus, Jatah menampilkan pesan dan tombol "Coba lagi"; isian formulir yang gagal disimpan tidak hilang.
-- Saat koneksi putus, pesan gagal baru muncul setelah beberapa detik karena supabase-js mencoba ulang dulu.
+- Data tersimpan di akunmu (database Supabase). Salinannya disimpan di HP supaya bisa dipakai tanpa internet (lihat "Memakai tanpa internet").
 - "Unduh salinan data" tetap dianjurkan secara rutin sebagai cadangan pribadi, terutama sebelum memulihkan salinan atau menghapus semua data.
-- "Keluar" hanya mengeluarkan perangkat yang sedang dipakai.
+- "Keluar" hanya mengeluarkan perangkat yang sedang dipakai, dan menghapus salinan data serta daftar tunggu akun itu dari perangkat tersebut.
 - Email bawaan Supabase dibatasi 2 email per jam (konfirmasi dan lupa kata sandi).
 - Transaksi belum bisa diubah. Hapus lalu catat ulang.
 - Hapus akun belum tersedia di aplikasi. Bisa dilakukan oleh pemilik proyek di Supabase > Authentication > Users; semua datanya ikut terhapus.
@@ -218,3 +278,15 @@ Hal-hal yang tidak diatur jelas di permintaan, dan pilihan yang dipakai:
 - **Keluar** memakai `scope: "local"`: hanya perangkat ini yang keluar, dan tetap berhasil walau sedang tanpa internet.
 - **Tombol masuk/daftar** menulis "Memproses..." saat menunggu; tombol penyimpanan data menulis "Menyimpan...".
 - Konfirmasi hapus dan pulihkan memakai dialog konfirmasi bawaan browser (`confirm`). Pesan kesalahan formulir selalu tampil di dekat kolomnya.
+- **Semua penulisan lewat daftar tunggu**, online maupun offline. Saat online, daftar tunggu langsung dikirim, jadi rasanya sama seperti sebelumnya.
+- **Perubahan yang ditolak server** tidak ikut ditampilkan (tidak dianggap terjadi) sampai kamu menekan "Coba lagi".
+- **Cache data di HP** juga diperbarui walau daftar tunggu belum kosong. Ini aman karena daftar tunggu tetap diterapkan di atasnya, dan transaksi yang id-nya sudah ada di server tidak didobel.
+- **Perubahan yang sudah diterima server** langsung dimasukkan ke salinan di HP sebelum dibuang dari daftar tunggu, supaya tampilan tidak loncat dan salinan di HP tetap lengkap walau internet putus sebelum data diambil ulang.
+- **Saat dibuka**, data pengguna terakhir di HP langsung ditampilkan tanpa menunggu supabase-js. Saat offline dengan token kedaluwarsa, supabase-js baru memberi kepastian setelah mencoba sampai ~30 detik. Kalau ternyata sesinya ditolak server, kamu tetap diarahkan ke halaman masuk; daftar tunggu tetap disimpan di HP dan dikirim setelah masuk lagi dengan akun yang sama.
+- **"Masuk lagi untuk mengirim"**: halaman masuk boleh dibuka walau masih masuk, supaya bisa masuk ulang tanpa kehilangan daftar tunggu.
+- **Status offline** ditentukan oleh kegagalan sungguhan saat menghubungi server ditambah `navigator.onLine`. Tombol yang butuh internet memakai status yang sama.
+- **Unduh salinan data** memakai data di HP (salinan dari server + perubahan yang belum terkirim), jadi tetap bisa offline.
+- **Pulihkan dan hapus semua data** mengirim daftar tunggu dulu. Kalau masih ada yang belum terkirim, keduanya menolak, supaya perubahan lama tidak menimpa hasilnya.
+- **Pengiriman** memakai batas waktu 15 detik per perubahan. Jeda coba lagi berkala mulai 30 detik dan berlipat sampai 5 menit.
+- **Service worker** menyimpan setiap halaman beserta semua berkas `/_next/static` yang disebut di HTML-nya saat dipasang, jadi halaman bisa dibuka penuh tanpa internet walau belum pernah dibuka. Font dan berkas yang baru dimuat belakangan ikut tersimpan saat pertama kali dipakai. Data halaman (RSC) yang belum tersimpan dibiarkan gagal, sehingga Next.js membuka halaman secara penuh dari cache.
+- **Ikon** dibuat sebagai PNG statis (192, 512, dan 180 untuk iPhone) dari bentuk geometris huruf J, tanpa font, di `public/`.

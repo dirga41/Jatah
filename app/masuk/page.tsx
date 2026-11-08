@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Galat, KolomSandi, kolom, label, tombolUtama } from "@/components/ui";
 import { pesanGalat } from "@/lib/pesan";
+import { useSinkron } from "@/lib/simpan";
 import { klien } from "@/lib/supabase";
 
 const MODE = [
@@ -19,6 +20,7 @@ export default function Masuk() {
   const [galat, setGalat] = useState<{ email?: string; sandi?: string; umum?: string }>({});
   const [info, setInfo] = useState<string | null>(null);
   const [menyimpan, setMenyimpan] = useState(false);
+  const { online } = useSinkron();
 
   const emailSah = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 
@@ -136,12 +138,13 @@ export default function Masuk() {
         </p>
       )}
 
-      <button type="submit" disabled={menyimpan} className={`${tombolUtama} mt-5 w-full`}>
+      <button type="submit" disabled={menyimpan || !online} className={`${tombolUtama} mt-5 w-full`}>
         {menyimpan ? "Memproses..." : mode === "masuk" ? "Masuk" : "Daftar"}
       </button>
+      {!online && <p className="mt-2 text-sm font-semibold text-redup">Butuh internet untuk masuk.</p>}
       <button
         type="button"
-        disabled={menyimpan}
+        disabled={menyimpan || !online}
         onClick={lupa}
         className="mt-3 flex min-h-11 items-center px-1 font-semibold text-hijau underline disabled:opacity-50"
       >

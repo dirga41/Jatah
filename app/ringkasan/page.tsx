@@ -14,10 +14,11 @@ import {
   transaksiBulan,
   type Transaksi,
 } from "@/lib/hitung";
-import { hapusTransaksi, useData } from "@/lib/simpan";
+import { hapusTransaksi, useData, useSinkron } from "@/lib/simpan";
 
 export default function Ringkasan() {
   const k = useData();
+  const { belumTerkirim } = useSinkron();
   const bulanIni = bulanDari(kunciTanggal());
   const [bulan, setBulan] = useState(bulanIni);
   const [galat, setGalat] = useState<string | null>(null);
@@ -144,6 +145,7 @@ export default function Ringkasan() {
                       {namaTanggal(t.tanggal)}
                       {t.catatan && ` · ${t.catatan}`}
                     </span>
+                    {belumTerkirim.has(t.id) && <span className="block text-sm font-semibold text-oranye">Belum terkirim</span>}
                   </span>
                   <span className="flex shrink-0 items-center gap-2">
                     <span className={`font-semibold ${t.jenis === "masuk" ? "text-hijau" : ""}`}>

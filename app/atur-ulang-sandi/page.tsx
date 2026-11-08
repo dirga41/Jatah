@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { KolomSandi, tombolUtama } from "@/components/ui";
+import { KolomSandi, PESAN_BUTUH_INTERNET, tombolUtama } from "@/components/ui";
 import { pesanGalat } from "@/lib/pesan";
-import { sedangPemulihan, useSesi } from "@/lib/simpan";
+import { sedangPemulihan, useSesi, useSinkron } from "@/lib/simpan";
 import { klien } from "@/lib/supabase";
 
 // Dibaca saat file ini dimuat, sebelum supabase-js membaca lalu membersihkan alamat tautan dari email.
@@ -18,6 +18,7 @@ export default function AturUlangSandi() {
   const [ulang, setUlang] = useState("");
   const [galat, setGalat] = useState<{ sandi?: string; ulang?: string; umum?: string }>({});
   const [menyimpan, setMenyimpan] = useState(false);
+  const { online } = useSinkron();
 
   const pemulihan = sedangPemulihan() || /type=recovery/.test(TAUTAN);
 
@@ -61,7 +62,7 @@ export default function AturUlangSandi() {
   return (
     <form onSubmit={kirim} noValidate>
       <h1 className="font-judul text-2xl font-bold">Atur ulang kata sandi</h1>
-      <p className="mt-1 text-redup">Untuk akun {sesi.user.email}</p>
+      <p className="mt-1 text-redup">Untuk akun {sesi.email}</p>
       <div className="mt-5">
         <KolomSandi id="sandi-baru" teksLabel="Kata sandi baru" nilai={sandi} onUbah={setSandi} galat={galat.sandi} autoComplete="new-password" />
       </div>
@@ -73,9 +74,10 @@ export default function AturUlangSandi() {
           {galat.umum}
         </p>
       )}
-      <button type="submit" disabled={menyimpan} className={`${tombolUtama} mt-5 w-full`}>
+      <button type="submit" disabled={menyimpan || !online} className={`${tombolUtama} mt-5 w-full`}>
         {menyimpan ? "Menyimpan..." : "Simpan kata sandi baru"}
       </button>
+      {!online && <p className="mt-2 text-sm font-semibold text-redup">{PESAN_BUTUH_INTERNET}</p>}
     </form>
   );
 }
