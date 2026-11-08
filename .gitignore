@@ -1,0 +1,8 @@
+node_modules
+.next
+# Semua file .env (berisi alamat dan kunci) tidak ikut ke GitHub; hanya contoh kosongnya yang ikut.
+.env*
+!.env.example
+.vercel
+next-env.d.ts
+*.tsbuildinfo

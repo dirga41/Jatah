@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+/* Warna per peran. Nilai di sini mode terang; mode gelap menimpa variabel yang sama di bawah. */
+@theme {
+  --color-latar: #f6f0e4;
+  --color-permukaan: #fffbf2;
+  --color-teks: #2b2a24;
+  --color-redup: #6b655a;
+  --color-garis: #ddd1ba;
+  --color-garis2: #e4d9c4;
+  --color-jalur: #e4d9c4;
+  --color-hijau: #2f5d46;
+  --color-di-hijau: #fffbf2;
+  --color-oranye: #a04a1a;
+  --color-merah: #9e2f25;
+  --font-sans: var(--font-dm-sans), system-ui, sans-serif;
+  --font-judul: var(--font-nunito), system-ui, sans-serif;
+}
+
+:root {
+  color-scheme: light;
+}
+
+/* data-tema dipasang oleh skrip di <head> sebelum halaman tampil. */
+:root[data-tema="gelap"] {
+  color-scheme: dark;
+  --color-latar: #1f1d18;
+  --color-permukaan: #2a2720;
+  --color-teks: #f3ede0;
+  --color-redup: #b5ad9c;
+  --color-garis: #3d3829;
+  --color-garis2: #343024;
+  --color-jalur: #3a3629;
+  --color-hijau: #6fbf8f;
+  --color-di-hijau: #14211a;
+  --color-oranye: #e0894f;
+  --color-merah: #e87a6e;
+}
+
+body {
+  background: var(--color-latar);
+  color: var(--color-teks);
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-teks);
+  outline-offset: 2px;
+}
